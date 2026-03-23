@@ -1,0 +1,82 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: s1mplo
+      POSTGRES_PASSWORD: s1mplo_dev
+      POSTGRES_DB: s1mplo
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U s1mplo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://s1mplo:s1mplo_dev@postgres:5432/s1mplo
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-s1mplo-dev-secret-change-in-prod}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-s1mplo-refresh-secret-change-in-prod}
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      META_APP_ID: ${META_APP_ID}
+      META_APP_SECRET: ${META_APP_SECRET}
+      META_API_VERSION: ${META_API_VERSION:-v21.0}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_DEVELOPER_TOKEN: ${GOOGLE_DEVELOPER_TOKEN}
+      NUVEMSHOP_APP_ID: ${NUVEMSHOP_APP_ID}
+      NUVEMSHOP_APP_SECRET: ${NUVEMSHOP_APP_SECRET}
+      ML_APP_ID: ${ML_APP_ID}
+      ML_SECRET_KEY: ${ML_SECRET_KEY}
+      TIKTOK_APP_ID: ${TIKTOK_APP_ID}
+      TIKTOK_APP_SECRET: ${TIKTOK_APP_SECRET}
+      ASAAS_API_KEY: ${ASAAS_API_KEY}
+      ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      FRONTEND_URL: http://localhost:5173
+      BACKEND_URL: http://localhost:3001
+      NOTIFICATION_WEBHOOK_URL: ${NOTIFICATION_WEBHOOK_URL}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "5173:80"
+    environment:
+      VITE_API_URL: http://localhost:3001
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

@@ -1,0 +1,352 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== AUTH & USERS ====================
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  country       String   @default("BR")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspaces    WorkspaceMember[]
+  subscription  Subscription?
+}
+
+model Subscription {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  plan          Plan     @default(TRIAL)
+  status        SubscriptionStatus @default(TRIAL)
+  maxWorkspaces Int      @default(10)
+  aiCredits     Int      @default(-1)
+  gateway       BillingGateway @default(ASAAS)
+  gatewayCustomerId      String?
+  gatewaySubscriptionId  String?
+  trialEndsAt   DateTime?
+  currentPeriodStart DateTime @default(now())
+  currentPeriodEnd   DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum Plan {
+  TRIAL
+  STARTER
+  PRO
+  AGENCY
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  SUSPENDED
+}
+
+enum BillingGateway {
+  ASAAS
+  STRIPE
+}
+
+// ==================== WORKSPACES (MULTI-TENANT) ====================
+
+model Workspace {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  members          WorkspaceMember[]
+  connections      Connection[]
+  adMetrics        AdMetric[]
+  analyticsMetrics AnalyticsMetric[]
+  orders           Order[]
+  syncLogs         SyncLog[]
+  aiInsights       AIInsight[]
+  alerts           Alert[]
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        WorkspaceRole @default(OWNER)
+  createdAt   DateTime @default(now())
+
+  user        User      @relation(fields: [userId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+}
+
+enum WorkspaceRole {
+  OWNER
+  MANAGER
+  VIEWER
+}
+
+// ==================== CONNECTIONS (OAuth) ====================
+
+model Connection {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  platform      Platform
+  platformAccountId   String
+  platformAccountName String?
+
+  accessToken   String
+  refreshToken  String?
+  tokenExpiresAt DateTime?
+  scopes        String?
+
+  status        ConnectionStatus @default(ACTIVE)
+  lastSyncAt    DateTime?
+  lastSyncError String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  adMetrics        AdMetric[]
+  analyticsMetrics AnalyticsMetric[]
+  orders           Order[]
+  syncLogs         SyncLog[]
+
+  @@unique([workspaceId, platform, platformAccountId])
+}
+
+enum Platform {
+  META_ADS
+  GOOGLE_ADS
+  GOOGLE_ANALYTICS
+  TIKTOK_ADS
+  NUVEMSHOP
+  MERCADO_LIVRE
+}
+
+enum ConnectionStatus {
+  ACTIVE
+  ERROR
+  EXPIRED
+  DISCONNECTED
+}
+
+// ==================== DADOS UNIFICADOS ====================
+
+model AdMetric {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  connectionId  String
+  connection    Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  date          DateTime @db.Date
+  platform      Platform
+
+  impressions   Int      @default(0)
+  clicks        Int      @default(0)
+  spend         Decimal  @db.Decimal(12, 2) @default(0)
+  conversions   Int      @default(0)
+  revenue       Decimal  @db.Decimal(12, 2) @default(0)
+
+  addToCart        Int   @default(0)
+  initiateCheckout Int   @default(0)
+  purchases        Int   @default(0)
+
+  campaignId    String?
+  campaignName  String?
+  adSetId       String?
+  adSetName     String?
+
+  cpc           Decimal? @db.Decimal(10, 2)
+  ctr           Decimal? @db.Decimal(8, 4)
+  cpa           Decimal? @db.Decimal(10, 2)
+  roas          Decimal? @db.Decimal(8, 2)
+
+  createdAt     DateTime @default(now())
+
+  @@unique([connectionId, date, campaignId])
+  @@index([workspaceId, date])
+  @@index([workspaceId, platform, date])
+}
+
+model Order {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  connectionId      String
+  connection        Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  platform          Platform
+  platformOrderId   String
+  orderDate         DateTime
+  status            OrderStatus
+
+  subtotal          Decimal  @db.Decimal(12, 2)
+  shipping          Decimal  @db.Decimal(12, 2) @default(0)
+  discount          Decimal  @db.Decimal(12, 2) @default(0)
+  total             Decimal  @db.Decimal(12, 2)
+
+  utmSource         String?
+  utmMedium         String?
+  utmCampaign       String?
+  utmContent        String?
+
+  customerEmail     String?
+  customerCity      String?
+  customerState     String?
+
+  itemCount         Int      @default(1)
+
+  createdAt         DateTime @default(now())
+
+  @@unique([connectionId, platformOrderId])
+  @@index([workspaceId, orderDate])
+  @@index([workspaceId, platform, orderDate])
+  @@index([workspaceId, utmSource, utmMedium])
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELED
+  REFUNDED
+}
+
+model AnalyticsMetric {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  connectionId  String
+  connection    Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  date          DateTime @db.Date
+
+  sessions      Int      @default(0)
+  users         Int      @default(0)
+  newUsers      Int      @default(0)
+  pageviews     Int      @default(0)
+  bounceRate    Decimal? @db.Decimal(6, 4)
+  avgSessionDuration Decimal? @db.Decimal(10, 2)
+
+  source        String?
+  medium        String?
+  campaign      String?
+
+  transactions     Int      @default(0)
+  ecommerceRevenue Decimal? @db.Decimal(12, 2)
+  addToCarts       Int      @default(0)
+  checkouts        Int      @default(0)
+
+  createdAt     DateTime @default(now())
+
+  @@unique([connectionId, date, source, medium, campaign])
+  @@index([workspaceId, date])
+  @@index([workspaceId, source, medium, date])
+}
+
+// ==================== IA — INSIGHTS E RECOMENDAÇÕES ====================
+
+model AIInsight {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  type          InsightType
+  severity      InsightSeverity
+  title         String
+  summary       String
+  detail        String   @db.Text
+  recommendation String  @db.Text
+  dataSnapshot  Json?
+
+  isRead        Boolean  @default(false)
+  isDismissed   Boolean  @default(false)
+
+  periodStart   DateTime
+  periodEnd     DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, type, isRead])
+}
+
+enum InsightType {
+  PERFORMANCE_ANALYSIS
+  BUDGET_REALLOCATION
+  FUNNEL_DIAGNOSIS
+  ANOMALY_DETECTION
+  CHANNEL_COMPARISON
+  ROAS_DISCREPANCY
+}
+
+enum InsightSeverity {
+  INFO
+  WARNING
+  CRITICAL
+  OPPORTUNITY
+}
+
+// ==================== ALERTAS ====================
+
+model Alert {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  type          AlertType
+  message       String
+  metadata      Json?
+  isRead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([workspaceId, isRead, createdAt])
+}
+
+enum AlertType {
+  ROAS_DROP
+  CPA_SPIKE
+  SPEND_ANOMALY
+  CONNECTION_ERROR
+  SYNC_FAILURE
+  BUDGET_EXHAUSTING
+  CONVERSION_DROP
+}
+
+// ==================== SYNC ====================
+
+model SyncLog {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  connectionId  String
+  connection    Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  status        SyncStatus
+  recordsProcessed Int    @default(0)
+  errorMessage  String?
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+}
+
+enum SyncStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
