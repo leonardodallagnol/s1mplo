@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
+import { CopilotPanel } from '../ai/CopilotPanel';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -12,6 +13,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <main className="flex-1 overflow-auto">
         {children}
       </main>
+      <CopilotPanel />
     </div>
   );
 }
