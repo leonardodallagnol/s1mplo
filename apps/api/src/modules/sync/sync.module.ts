@@ -10,6 +10,7 @@ import { GoogleAnalyticsAdapter } from './adapters/google-analytics.adapter';
 import { NuvemshopAdapter } from './adapters/nuvemshop.adapter';
 import { MercadoLivreAdapter } from './adapters/mercadolivre.adapter';
 import { TikTokAdsAdapter } from './adapters/tiktok-ads.adapter';
+import { ShopifyAdapter } from './adapters/shopify.adapter';
 import { MercadoLivreProvider } from '../oauth/providers/mercadolivre.provider';
 import { OAuthModule } from '../oauth/oauth.module';
 import { PrismaModule } from '../../prisma/prisma.module';
@@ -30,6 +31,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
     NuvemshopAdapter,
     MercadoLivreAdapter,
     TikTokAdsAdapter,
+    ShopifyAdapter,
   ],
   exports: [SyncService],
 })

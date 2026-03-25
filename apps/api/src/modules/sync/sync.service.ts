@@ -9,6 +9,7 @@ import { GoogleAnalyticsAdapter } from './adapters/google-analytics.adapter';
 import { NuvemshopAdapter } from './adapters/nuvemshop.adapter';
 import { MercadoLivreAdapter } from './adapters/mercadolivre.adapter';
 import { TikTokAdsAdapter } from './adapters/tiktok-ads.adapter';
+import { ShopifyAdapter } from './adapters/shopify.adapter';
 import { BasePlatformAdapter, DateRange } from './adapters/base.adapter';
 import { NotificationService } from './notification.service';
 
@@ -27,6 +28,7 @@ export class SyncService {
     private nuvemshopAdapter: NuvemshopAdapter,
     private mercadoLivreAdapter: MercadoLivreAdapter,
     private tikTokAdsAdapter: TikTokAdsAdapter,
+    private shopifyAdapter: ShopifyAdapter,
     private notificationService: NotificationService,
   ) {}
 
@@ -498,6 +500,7 @@ export class SyncService {
       [Platform.NUVEMSHOP]: this.nuvemshopAdapter,
       [Platform.MERCADO_LIVRE]: this.mercadoLivreAdapter,
       [Platform.TIKTOK_ADS]: this.tikTokAdsAdapter,
+      [Platform.SHOPIFY]: this.shopifyAdapter,
     };
 
     const adapter = adapters[platform];

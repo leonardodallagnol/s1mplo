@@ -10,6 +10,7 @@ export const API_VERSIONS = {
   NUVEMSHOP: process.env.NUVEMSHOP_API_VERSION || 'v1',
   MERCADO_LIVRE: process.env.ML_API_VERSION || 'v1',
   GOOGLE_ANALYTICS: 'v1beta', // GA4 Data API — stable version
+  SHOPIFY: process.env.SHOPIFY_API_VERSION || '2024-01',
 } as const;
 
 export type ApiVersionKey = keyof typeof API_VERSIONS;

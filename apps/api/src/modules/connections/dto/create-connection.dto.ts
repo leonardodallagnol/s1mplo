@@ -7,6 +7,7 @@ export enum Platform {
   TIKTOK_ADS = 'TIKTOK_ADS',
   NUVEMSHOP = 'NUVEMSHOP',
   MERCADO_LIVRE = 'MERCADO_LIVRE',
+  SHOPIFY = 'SHOPIFY',
 }
 
 export class CreateConnectionDto {

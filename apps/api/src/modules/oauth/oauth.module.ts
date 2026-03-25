@@ -6,6 +6,7 @@ import { GoogleProvider } from './providers/google.provider';
 import { NuvemshopProvider } from './providers/nuvemshop.provider';
 import { MercadoLivreProvider } from './providers/mercadolivre.provider';
 import { TikTokAdsProvider } from './providers/tiktok-ads.provider';
+import { ShopifyProvider } from './providers/shopify.provider';
 import { ConnectionsModule } from '../connections/connections.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { ConnectionsModule } from '../connections/connections.module';
     NuvemshopProvider,
     MercadoLivreProvider,
     TikTokAdsProvider,
+    ShopifyProvider,
   ],
   exports: [OAuthService, MercadoLivreProvider],
 })

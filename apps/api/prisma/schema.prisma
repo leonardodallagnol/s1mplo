@@ -136,6 +136,7 @@ enum Platform {
   TIKTOK_ADS
   NUVEMSHOP
   MERCADO_LIVRE
+  SHOPIFY
 }
 
 enum ConnectionStatus {

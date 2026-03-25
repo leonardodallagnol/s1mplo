@@ -6,6 +6,7 @@ import { GoogleProvider } from './providers/google.provider';
 import { NuvemshopProvider } from './providers/nuvemshop.provider';
 import { MercadoLivreProvider } from './providers/mercadolivre.provider';
 import { TikTokAdsProvider } from './providers/tiktok-ads.provider';
+import { ShopifyProvider } from './providers/shopify.provider';
 
 @Injectable()
 export class OAuthService {
@@ -16,6 +17,7 @@ export class OAuthService {
     private nuvemshopProvider: NuvemshopProvider,
     private mercadoLivreProvider: MercadoLivreProvider,
     private tikTokAdsProvider: TikTokAdsProvider,
+    private shopifyProvider: ShopifyProvider,
   ) {}
 
   // ==================== STATE MANAGEMENT ====================
@@ -193,6 +195,29 @@ export class OAuthService {
       advertiserName,
       accessToken,
     );
+  }
+
+  // ==================== SHOPIFY ====================
+
+  getShopifyAuthUrl(workspaceId: string, shop: string): string {
+    const state = this.encryptState({ workspaceId, shop, provider: 'shopify' });
+    return this.shopifyProvider.getAuthorizationUrl(shop, state);
+  }
+
+  async handleShopifyCallback(shop: string, code: string, state: string) {
+    const { workspaceId } = this.decryptState(state);
+
+    const accessToken = await this.shopifyProvider.exchangeCodeForToken(shop, code);
+    const shopInfo = await this.shopifyProvider.getShopInfo(shop, accessToken);
+
+    const connection = await this.shopifyProvider.saveConnection(
+      workspaceId,
+      shop,
+      shopInfo.name,
+      accessToken,
+    );
+
+    return { workspaceId, connection, shopName: shopInfo.name };
   }
 
   // ==================== MERCADO LIVRE ====================

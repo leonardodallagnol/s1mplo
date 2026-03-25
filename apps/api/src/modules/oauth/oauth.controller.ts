@@ -208,6 +208,41 @@ export class OAuthController {
     );
   }
 
+  // ==================== SHOPIFY ====================
+
+  @UseGuards(JwtAuthGuard)
+  @Get('shopify/authorize')
+  @Redirect()
+  shopifyAuthorize(
+    @Query('workspaceId') workspaceId: string,
+    @Query('shop') shop: string,
+  ) {
+    if (!workspaceId) throw new BadRequestException('workspaceId is required');
+    if (!shop) throw new BadRequestException('shop domain is required (e.g. my-store.myshopify.com)');
+
+    const url = this.oauthService.getShopifyAuthUrl(workspaceId, shop);
+    return { url };
+  }
+
+  @Get('shopify/callback')
+  async shopifyCallback(
+    @Query('shop') shop: string,
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Query('error') error: string,
+  ) {
+    if (error) {
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+      return { redirect: `${frontendUrl}/connections?error=shopify_denied` };
+    }
+
+    if (!shop || !code || !state) {
+      throw new BadRequestException('Missing shop, code or state');
+    }
+
+    return this.oauthService.handleShopifyCallback(shop, code, state);
+  }
+
   // ==================== MERCADO LIVRE ====================
 
   @UseGuards(JwtAuthGuard)
