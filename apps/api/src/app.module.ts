@@ -10,6 +10,7 @@ import { SyncModule } from './modules/sync/sync.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AIModule } from './modules/ai/ai.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
+import { BillingModule } from './modules/billing/billing.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AlertsModule } from './modules/alerts/alerts.module';
     DashboardModule,
     AIModule,
     AlertsModule,
+    BillingModule,
   ],
 })
 export class AppModule {}

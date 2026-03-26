@@ -9,6 +9,7 @@ import Copilot from './pages/Copilot';
 import Connections from './pages/Connections';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
+import Billing from './pages/Billing';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('accessToken');
@@ -46,5 +47,9 @@ export const routes: RouteObject[] = [
   {
     path: '/settings',
     element: <PrivateRoute><Settings /></PrivateRoute>,
+  },
+  {
+    path: '/billing',
+    element: <PrivateRoute><Billing /></PrivateRoute>,
   },
 ];

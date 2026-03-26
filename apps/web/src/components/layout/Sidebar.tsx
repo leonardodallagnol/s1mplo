@@ -8,6 +8,7 @@ import {
   Bot,
   ChevronDown,
   Users,
+  CreditCard,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '../../hooks/useAuth';
@@ -17,6 +18,7 @@ const nav = [
   { to: '/copilot', icon: Bot, label: 'Copiloto IA' },
   { to: '/connections', icon: Plug, label: 'Conexões' },
   { to: '/alerts', icon: Bell, label: 'Alertas' },
+  { to: '/billing', icon: CreditCard, label: 'Planos & Cobrança' },
   { to: '/settings', icon: Settings, label: 'Configurações' },
 ];
 

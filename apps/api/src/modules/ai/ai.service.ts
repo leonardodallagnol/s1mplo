@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -29,12 +29,46 @@ export class AIService {
     });
   }
 
+  private async getModelConfig(userId: string): Promise<{ model: string; maxTokensAnalysis: number; maxTokensCopilot: number }> {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { userId },
+      select: { plan: true },
+    });
+
+    const plan = subscription?.plan || 'TRIAL';
+    const isPremium = plan === 'PRO' || plan === 'AGENCY';
+
+    return isPremium
+      ? { model: 'claude-sonnet-4-6',          maxTokensAnalysis: 1500, maxTokensCopilot: 1024 }
+      : { model: 'claude-haiku-4-5-20251001',   maxTokensAnalysis: 800,  maxTokensCopilot: 500  };
+  }
+
+  private async checkAndConsumeAICredit(userId: string): Promise<void> {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { userId },
+    });
+    if (!subscription) throw new ForbiddenException('No subscription found');
+    if (subscription.aiCredits === -1) return; // ilimitado
+    if (subscription.aiCredits <= 0) {
+      throw new ForbiddenException(
+        `Você usou todos os créditos de IA deste mês. Faça upgrade para Pro ou Agency para créditos ilimitados.`,
+      );
+    }
+    await this.prisma.subscription.update({
+      where: { userId },
+      data: { aiCredits: { decrement: 1 } },
+    });
+  }
+
   async analyzeWorkspace(
     workspaceId: string,
     userId: string,
     startDate?: string,
     endDate?: string,
   ) {
+    await this.checkAndConsumeAICredit(userId);
+    const { model, maxTokensAnalysis } = await this.getModelConfig(userId);
+
     const [kpis, channels, funnel, validation, traffic] = await Promise.all([
       this.dashboardService.getConsolidatedKPIs(workspaceId, startDate, endDate),
       this.dashboardService.getChannelComparison(workspaceId, startDate, endDate),
@@ -116,8 +150,8 @@ Respond ONLY with valid JSON in this exact format:
 
     try {
       const message = await this.client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2048,
+        model,
+        max_tokens: maxTokensAnalysis,
         messages: [{ role: 'user', content: prompt }],
       });
 
@@ -162,11 +196,14 @@ Respond ONLY with valid JSON in this exact format:
 
   async askCopilot(
     workspaceId: string,
-    _userId: string,
+    userId: string,
     question: string,
     startDate?: string,
     endDate?: string,
   ): Promise<string> {
+    await this.checkAndConsumeAICredit(userId);
+    const { model, maxTokensCopilot } = await this.getModelConfig(userId);
+
     const [kpis, channels] = await Promise.all([
       this.dashboardService.getConsolidatedKPIs(workspaceId, startDate, endDate),
       this.dashboardService.getChannelComparison(workspaceId, startDate, endDate),
@@ -203,8 +240,8 @@ User question: ${question}
 Answer concisely and practically, referencing specific numbers from the data. Focus on actionable insights.`;
 
     const message = await this.client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
+      model,
+      max_tokens: maxTokensCopilot,
       messages: [{ role: 'user', content: prompt }],
     });
 
