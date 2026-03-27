@@ -6,7 +6,7 @@ import {
   ChevronUp, ChevronDown, X,
 } from 'lucide-react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
-import { api } from '../lib/api';
+import api from '../lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

@@ -300,7 +300,7 @@ export default function Dashboard() {
         <Card>
           <div className="flex items-center gap-2 mb-4">
             <p className="text-sm font-semibold text-white">Validação de Conversão</p>
-            <Info size={14} className="text-gray-600" title="Compara conversões dos Ads vs GA4 vs pedidos reais" />
+            <Info size={14} className="text-gray-600" />
           </div>
           {validationQ.isLoading
             ? <div className="h-20 bg-dark-gray animate-pulse rounded" />
