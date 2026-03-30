@@ -11,6 +11,9 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AIModule } from './modules/ai/ai.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import { CryptoModule } from './common/crypto.module';
 
 @Module({
   imports: [
@@ -28,6 +31,11 @@ import { BillingModule } from './modules/billing/billing.module';
       }),
       inject: [ConfigService],
     }),
+    ThrottlerModule.forRoot([
+      { name: 'short', ttl: 60000,  limit: 10  }, // 10 req/min (auth)
+      { name: 'long',  ttl: 60000,  limit: 100 }, // 100 req/min (geral)
+    ]),
+    CryptoModule,
     PrismaModule,
     AuthModule,
     WorkspacesModule,
@@ -38,6 +46,9 @@ import { BillingModule } from './modules/billing/billing.module';
     AIModule,
     AlertsModule,
     BillingModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

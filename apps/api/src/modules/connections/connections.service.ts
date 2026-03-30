@@ -1,14 +1,17 @@
 import {
   Injectable,
   NotFoundException,
-  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CryptoService } from '../../common/services/crypto.service';
 import { CreateConnectionDto } from './dto/create-connection.dto';
 
 @Injectable()
 export class ConnectionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private crypto: CryptoService,
+  ) {}
 
   async findAll(workspaceId: string) {
     return this.prisma.connection.findMany({
@@ -23,11 +26,28 @@ export class ConnectionsService {
         lastSyncError: true,
         createdAt: true,
         scopes: true,
+        // accessToken e refreshToken nunca são expostos pela API
       },
     });
   }
 
+  // Uso interno: retorna conexão com tokens decriptados para o SyncService
+  async findOneDecrypted(connectionId: string) {
+    const connection = await this.prisma.connection.findUnique({
+      where: { id: connectionId },
+    });
+    if (!connection) return null;
+    return {
+      ...connection,
+      accessToken: this.crypto.decrypt(connection.accessToken),
+      refreshToken: this.crypto.decryptNullable(connection.refreshToken),
+    };
+  }
+
   async create(workspaceId: string, dto: CreateConnectionDto) {
+    const encryptedAccessToken = this.crypto.encrypt(dto.accessToken);
+    const encryptedRefreshToken = this.crypto.encryptNullable(dto.refreshToken);
+
     const existing = await this.prisma.connection.findUnique({
       where: {
         workspaceId_platform_platformAccountId: {
@@ -39,12 +59,11 @@ export class ConnectionsService {
     });
 
     if (existing) {
-      // Update instead of throwing error (re-connect)
       return this.prisma.connection.update({
         where: { id: existing.id },
         data: {
-          accessToken: dto.accessToken,
-          refreshToken: dto.refreshToken,
+          accessToken: encryptedAccessToken,
+          refreshToken: encryptedRefreshToken,
           tokenExpiresAt: dto.tokenExpiresAt,
           scopes: dto.scopes,
           platformAccountName: dto.platformAccountName,
@@ -60,8 +79,8 @@ export class ConnectionsService {
         platform: dto.platform,
         platformAccountId: dto.platformAccountId,
         platformAccountName: dto.platformAccountName,
-        accessToken: dto.accessToken,
-        refreshToken: dto.refreshToken,
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken,
         tokenExpiresAt: dto.tokenExpiresAt,
         scopes: dto.scopes,
       },
@@ -91,7 +110,6 @@ export class ConnectionsService {
       throw new NotFoundException('Connection not found');
     }
 
-    // Sync will be implemented in Phase 2 with BullMQ
     return { message: 'Sync job queued', connectionId };
   }
 }

@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CryptoService } from '../../common/services/crypto.service';
 import { Platform, SyncStatus, AlertType, ConnectionStatus } from '@prisma/client';
 import { MetaAdsAdapter } from './adapters/meta-ads.adapter';
 import { GoogleAdsAdapter } from './adapters/google-ads.adapter';
@@ -30,6 +31,7 @@ export class SyncService {
     private tikTokAdsAdapter: TikTokAdsAdapter,
     private shopifyAdapter: ShopifyAdapter,
     private notificationService: NotificationService,
+    private cryptoService: CryptoService,
   ) {}
 
   // ==================== QUEUE MANAGEMENT ====================
@@ -116,13 +118,20 @@ export class SyncService {
   // ==================== CORE SYNC LOGIC ====================
 
   async syncConnection(connectionId: string): Promise<void> {
-    const connection = await this.prisma.connection.findUnique({
+    const raw = await this.prisma.connection.findUnique({
       where: { id: connectionId },
     });
 
-    if (!connection) {
+    if (!raw) {
       throw new NotFoundException(`Connection ${connectionId} not found`);
     }
+
+    // Decripta tokens antes de passar para os adapters
+    const connection = {
+      ...raw,
+      accessToken: this.cryptoService.decrypt(raw.accessToken),
+      refreshToken: this.cryptoService.decryptNullable(raw.refreshToken),
+    };
 
     const adapter = this.getAdapter(connection.platform);
     const startedAt = new Date();
@@ -301,16 +310,17 @@ export class SyncService {
 
     try {
       const { accessToken, refreshToken, expiresAt } = await adapter.refreshToken(connection);
-      const updated = await this.prisma.connection.update({
+      await this.prisma.connection.update({
         where: { id: connection.id },
         data: {
-          accessToken,
-          refreshToken: refreshToken || connection.refreshToken,
+          accessToken: this.cryptoService.encrypt(accessToken),
+          refreshToken: this.cryptoService.encryptNullable(refreshToken || connection.refreshToken),
           tokenExpiresAt: expiresAt,
         },
       });
       this.logger.log(`Token refreshed for connection ${connection.id}`);
-      return updated;
+      // Retorna conexão com tokens em texto plano para continuar o sync
+      return { ...connection, accessToken, refreshToken: refreshToken || connection.refreshToken, tokenExpiresAt: expiresAt };
     } catch (err: any) {
       this.logger.warn(`Token refresh failed for connection ${connection.id}: ${err.message}`);
       return connection;
