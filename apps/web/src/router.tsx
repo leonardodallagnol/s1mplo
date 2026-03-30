@@ -10,6 +10,8 @@ import Connections from './pages/Connections';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
 import Billing from './pages/Billing';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('accessToken');
@@ -52,4 +54,6 @@ export const routes: RouteObject[] = [
     path: '/billing',
     element: <PrivateRoute><Billing /></PrivateRoute>,
   },
+  { path: '/privacidade', element: <Privacy /> },
+  { path: '/termos', element: <Terms /> },
 ];
